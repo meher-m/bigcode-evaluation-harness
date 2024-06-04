@@ -183,6 +183,12 @@ def parse_args():
         help="Path for saving the code generations",
     )
     parser.add_argument(
+        "--save_results_path",
+        type=str,
+        default="results.json",
+        help="Path for saving the results with generations",
+    )
+    parser.add_argument(
         "--save_references",
         action="store_true",
         help="Whether to save reference solutions/tests",
@@ -415,6 +421,9 @@ def main():
                 results[task] = evaluator.evaluate(
                     task, intermediate_generations=intermediate_generations
                 )
+
+    # Save the results into a json 
+
 
     # Save all args to config
     results["config"] = vars(args)

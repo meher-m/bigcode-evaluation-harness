@@ -47,7 +47,7 @@ class GeneralHumanEval(Task):
 
     DATASET_PATH = "openai_humaneval"
 
-    def __init__(self, strip_prompt, k=[1, 10, 100], num_workers=16, timeout=3.0):
+    def __init__(self, strip_prompt, k=[1, 10, 100], num_workers=16, timeout=3.0, one_shot=False, prompt_quality=2, add_context=False):
         super().__init__(
             stop_words=["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif", "\n```", "<file_sep>"],
             requires_execution=True,
@@ -58,22 +58,17 @@ class GeneralHumanEval(Task):
         self.timeout = timeout
 
         # Used for Nuggets experiments
-        self.one_shot = False
-        self.prompt_quality = None
-        self.add_context = False
-        self.args = None
+        self.one_shot = one_shot
+        self.prompt_quality = prompt_quality
+        self.add_context = add_context
         self.doc = None
 
-    def get_dataset(self, args):
+    def get_dataset(self):
         """Returns dataset for the task or an iterable of any object, that get_prompt can handle"""
-        self.one_shot = args.one_shot
-        self.prompt_quality = args.prompt_quality
-        self.add_context = args.add_context
-        self.args = args
         return self.dataset["test"]
 
     def get_start_context(self):
-        return "Implement answers to the following questions:\nQUESTION:\n"
+        return "Implement solutions to the following coding tasks given the function heading:\n"
 
     def get_one_shot_example(self):
 
@@ -89,7 +84,7 @@ class GeneralHumanEval(Task):
 
         # If add_context is set, add additional context to the prompt. 
         if self.add_context:
-            return final_sample["prompt"] + "\nANSWER:\n" + example_task_answers[self.prompt_quality] + "\n" + "QUESTION:\n"
+            return final_sample["prompt"] + "\n" + example_task_answers[self.prompt_quality] + "\n"
         else:
             return final_sample["prompt"] + "\n" + example_task_answers[self.prompt_quality] + "\n"
 
@@ -108,7 +103,7 @@ class GeneralHumanEval(Task):
         # Cases: one shot with context, one shot without context, zero shot
         start_context = self.get_start_context()
         if self.one_shot and self.add_context:
-            return start_context + self.get_one_shot_example() + prompt + "\nANSWER:\n"
+            return start_context + self.get_one_shot_example() + prompt
         elif self.one_shot:
             return self.get_one_shot_example() + prompt
         else:
@@ -147,11 +142,17 @@ class GeneralHumanEval(Task):
         :param references: list(str)
             list of str containing refrences
         """
-        results, _ = compute_code_eval(
+        results, fine_grain_results = compute_code_eval(
             references=references,
             predictions=generations,
             k=self.k,
             num_workers=self.num_workers,
             timeout=self.timeout,
         )
-        return results
+
+        simplified_fine_grain_res = {}
+        for task_id in fine_grain_results:
+            # The element at each task_id is a single element list. The element is a tuple (0, dict) where the dict contains
+            # 'task_id', 'passed', 'result', and 'completion_id' as its keys. Extracting this dictionary to save. 
+            simplified_fine_grain_res[task_id] = fine_grain_results[task_id][0][1]
+        return results, simplified_fine_grain_res
