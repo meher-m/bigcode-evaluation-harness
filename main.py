@@ -429,9 +429,6 @@ def main():
                     task, intermediate_generations=intermediate_generations
                 )
 
-    # Save the results into a json 
-
-
     # Save all args to config
     results["config"] = vars(args)
     if not args.generation_only:

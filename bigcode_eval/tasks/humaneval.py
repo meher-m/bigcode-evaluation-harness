@@ -61,7 +61,6 @@ class GeneralHumanEval(Task):
         self.one_shot = one_shot
         self.prompt_quality = prompt_quality
         self.add_context = add_context
-        print(f"[MEHER] The example idxs are {example_idxs}")
         self.example_idxs = example_idxs
         self.doc = None
 
