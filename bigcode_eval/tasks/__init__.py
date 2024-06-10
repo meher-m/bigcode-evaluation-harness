@@ -44,9 +44,9 @@ def get_task(task_name, args=None):
         if "load_data_path" in inspect.signature(TASK_REGISTRY[task_name]).parameters:
             kwargs["load_data_path"] = args.load_data_path
 
-        kwargs["one_shot"] = args.one_shot
-        kwargs["prompt_quality"] = args.prompt_quality
-        kwargs["add_context"] = args.add_context
+        kwargs["humaneval_one_shot"] = args.humaneval_one_shot
+        kwargs["humaneval_prompt_quality"] = args.humaneval_prompt_quality
+        kwargs["humaneval_add_context"] = args.humaneval_add_context
         return TASK_REGISTRY[task_name](**kwargs)
     except KeyError:
         print("Available tasks:")

@@ -47,7 +47,16 @@ class GeneralHumanEval(Task):
 
     DATASET_PATH = "openai_humaneval"
 
-    def __init__(self, strip_prompt, k=[1, 10, 100], num_workers=16, timeout=3.0, one_shot=False, prompt_quality=2, add_context=False):
+    def __init__(
+            self, 
+            strip_prompt, 
+            k=[1, 10, 100], 
+            num_workers=16, 
+            timeout=3.0, 
+            humaneval_one_shot=False, 
+            humaneval_prompt_quality=2, 
+            humaneval_add_context=False
+    ):
         super().__init__(
             stop_words=["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif", "\n```", "<file_sep>"],
             requires_execution=True,
@@ -58,9 +67,9 @@ class GeneralHumanEval(Task):
         self.timeout = timeout
 
         # Used for Nuggets experiments
-        self.one_shot = one_shot
-        self.prompt_quality = prompt_quality
-        self.add_context = add_context
+        self.one_shot = humaneval_one_shot
+        self.prompt_quality = humaneval_prompt_quality
+        self.add_context = humaneval_add_context
         self.doc = None
 
     def get_dataset(self):

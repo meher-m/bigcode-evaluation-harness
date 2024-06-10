@@ -217,21 +217,21 @@ def parse_args():
         help="Don't run generation but benchmark groundtruth (useful for debugging)",
     )
     parser.add_argument(
-        "--one_shot",
+        "--humaneval_one_shot",
         action="store_true",
-        help="Turn on one_shot prompting for Nuggets evaluation",
+        help="Turn on one_shot prompting for Nuggets evaluation with HumanEval",
     )
     parser.add_argument(
-        "--prompt_quality",
+        "--humaneval_prompt_quality",
         type=int,
         choices=[0,1,2],
         default=0,
-        help="Choose whether to use the bad (0), decent (1), or correct (2) solution for the one shot task",
+        help="Choose whether to use the bad (0), decent (1), or correct (2) solution for the one shot task with HumanEval",
     )
     parser.add_argument(
-        "--add_context",
+        "--humaneval_add_context",
         action="store_true",
-        help="Turn on to use the prompt template with added context",
+        help="Use the prompt template with added context in HumanEval",
     )
     return parser.parse_args()
 
@@ -421,9 +421,6 @@ def main():
                 results[task] = evaluator.evaluate(
                     task, intermediate_generations=intermediate_generations
                 )
-
-    # Save the results into a json 
-
 
     # Save all args to config
     results["config"] = vars(args)
