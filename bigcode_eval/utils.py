@@ -1,3 +1,4 @@
+import copy
 import json
 import math
 import re
@@ -341,6 +342,18 @@ def complete_code(
                 # reset gen_token_dict - prevent redundant decoding
                 gen_token_dict = defaultdict(list)
 
+    raw_code_gens = copy.deepcopy(code_gens)
+    raw_code_gens = update_code_gens(
+        task,
+        tokenizer,
+        limit_start,
+        prefix,
+        instruction_tokens,
+        False,
+        raw_code_gens,
+        gen_token_dict,
+    )
+
     code_gens = update_code_gens(
         task,
         tokenizer,
@@ -353,7 +366,7 @@ def complete_code(
     )
 
     generations.extend(code_gens)
-    return generations
+    return {"generations": generations, "raw_generations": raw_code_gens}
 
 
 def update_code_gens(

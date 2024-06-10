@@ -47,6 +47,7 @@ def get_task(task_name, args=None):
         kwargs["one_shot"] = args.one_shot
         kwargs["prompt_quality"] = args.prompt_quality
         kwargs["add_context"] = args.add_context
+        kwargs["example_idxs"] = args.example_idxs
         return TASK_REGISTRY[task_name](**kwargs)
     except KeyError:
         print("Available tasks:")

@@ -47,7 +47,7 @@ class GeneralHumanEval(Task):
 
     DATASET_PATH = "openai_humaneval"
 
-    def __init__(self, strip_prompt, k=[1, 10, 100], num_workers=16, timeout=3.0, one_shot=False, prompt_quality=2, add_context=False):
+    def __init__(self, strip_prompt, k=[1, 10, 100], num_workers=16, timeout=3.0, one_shot=False, prompt_quality=2, add_context=False, example_idxs=[163]):
         super().__init__(
             stop_words=["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif", "\n```", "<file_sep>"],
             requires_execution=True,
@@ -61,6 +61,8 @@ class GeneralHumanEval(Task):
         self.one_shot = one_shot
         self.prompt_quality = prompt_quality
         self.add_context = add_context
+        print(f"[MEHER] The example idxs are {example_idxs}")
+        self.example_idxs = example_idxs
         self.doc = None
 
     def get_dataset(self):
@@ -70,23 +72,25 @@ class GeneralHumanEval(Task):
     def get_start_context(self):
         return "Implement solutions to the following coding tasks given the function heading:\n"
 
-    def get_one_shot_example(self):
+    def get_prompt_examples(self):
 
-        # For now, hard-coding the one shot example to be the last task in the HumanEval dataset
-        # Also hard-coding the three sample solutions (good, decent, and bad) here
-        final_sample = self.dataset["test"][-1]
-        correct_sol = final_sample["canonical_solution"]
-        really_bad_sol = "    cat: cat cat\n    dog dog dog;\n    return [giraffe if giraffe for giraffe in giraffe]"
-        decent_sol = "    lower = 2\n    upper = 8\n    return [i if i % 2 = 0 for i in range(lower, upper)]"
+        prompt = ""
         
-        # Create a list of all the different task answers possible for various experiments
-        example_task_answers = [really_bad_sol, decent_sol, correct_sol]
+        for example_idx in self.example_idxs:
+            # For now, hard-coding the one shot example to be the last task in the HumanEval dataset
+            # Also hard-coding the three sample solutions (good, decent, and bad) here
+            sample = self.dataset["test"][example_idx]
+            correct_sol = sample["canonical_solution"]
+            really_bad_sol = "    cat: cat cat\n    dog dog dog;\n    return [giraffe if giraffe for giraffe in giraffe]"
+            decent_sol = "    lower = 2\n    upper = 8\n    return [i if i % 2 = 0 for i in range(lower, upper)]"
+            
+            # Create a list of all the different task answers possible for various experiments
+            example_task_answers = [really_bad_sol, decent_sol, correct_sol]
 
-        # If add_context is set, add additional context to the prompt. 
-        if self.add_context:
-            return final_sample["prompt"] + "\n" + example_task_answers[self.prompt_quality] + "\n"
-        else:
-            return final_sample["prompt"] + "\n" + example_task_answers[self.prompt_quality] + "\n"
+            # If add_context is set, add additional context to the prompt. 
+            prompt += sample["prompt"] + "\n" + example_task_answers[self.prompt_quality] + "\n"
+
+        return prompt
 
     def get_base_prompt(self, doc):
         # Strip prompt if required
@@ -103,9 +107,9 @@ class GeneralHumanEval(Task):
         # Cases: one shot with context, one shot without context, zero shot
         start_context = self.get_start_context()
         if self.one_shot and self.add_context:
-            return start_context + self.get_one_shot_example() + prompt
+            return start_context + self.get_prompt_examples() + prompt
         elif self.one_shot:
-            return self.get_one_shot_example() + prompt
+            return self.get_prompt_examples() + prompt
         else:
             return prompt
 

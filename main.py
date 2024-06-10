@@ -229,6 +229,13 @@ def parse_args():
         help="Choose whether to use the bad (0), decent (1), or correct (2) solution for the one shot task",
     )
     parser.add_argument(
+        "--example_idxs",
+        nargs="*",
+        type=int,
+        default=[163],
+        help="Chose example(s) to be used for few-shot prompt. All ints in range [0, 163] for HumanEval. E.g --example_idxs 161 162 163",
+    )
+    parser.add_argument(
         "--add_context",
         action="store_true",
         help="Turn on to use the prompt template with added context",
