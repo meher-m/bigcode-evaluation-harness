@@ -106,16 +106,23 @@ class Evaluator:
 
             results, fine_grain_results = task.process_results(generations, references)
 
+            # Simplify the fine grain results to save task_id, generation, and whether it passed.
+            simplified_fine_grain_res = {}
+            for task_id in fine_grain_results:
+                # The element at each task_id is a single element list. The element is a tuple (0, dict) where the dict contains
+                # 'task_id', 'passed', 'result', and 'completion_id' as its keys. Extracting this dictionary to save. 
+                simplified_fine_grain_res[task_id] = fine_grain_results[task_id][0][1]
+
             if self.args.save_results_path:
                 # Dump to a new json that has {'task_id': --, 'generation': --, 'result': --}
-                save_results_path = f"{os.path.splitext(self.args.save_results_path)[0]}_{task_name}.json"
+                save_results_path = f"{self.args.save_results_path}_{task_name}.json"
 
                 # Add the generations to the fine grain results and then dump to a new json
-                for task_id in fine_grain_results:
-                    fine_grain_results[task_id]["generation"] = generations[task_id]
+                for task_id in simplified_fine_grain_res:
+                    simplified_fine_grain_res[task_id]["generation"] = generations[task_id]
 
                 with open(save_results_path, "w") as fp:
-                    json.dump(fine_grain_results, fp)
+                    json.dump(simplified_fine_grain_res, fp)
                     print(f"results with generation were saved at {save_results_path}")
 
             return results

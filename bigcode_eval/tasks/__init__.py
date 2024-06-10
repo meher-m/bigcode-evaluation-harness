@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import inspect
 from pprint import pprint
 
@@ -36,6 +37,13 @@ TASK_REGISTRY = {
 ALL_TASKS = sorted(list(TASK_REGISTRY))
 
 
+@dataclass
+class NuggetsConfig():
+    one_shot: bool = False
+    prompt_quality: int = 2
+    add_context: bool = False
+
+
 def get_task(task_name, args=None):
     try:
         kwargs = {}
@@ -44,9 +52,13 @@ def get_task(task_name, args=None):
         if "load_data_path" in inspect.signature(TASK_REGISTRY[task_name]).parameters:
             kwargs["load_data_path"] = args.load_data_path
 
-        kwargs["humaneval_one_shot"] = args.humaneval_one_shot
-        kwargs["humaneval_prompt_quality"] = args.humaneval_prompt_quality
-        kwargs["humaneval_add_context"] = args.humaneval_add_context
+        nuggets_config = NuggetsConfig(
+            args.humaneval_one_shot,
+            args.humaneval_prompt_quality,
+            args.humaneval_add_context
+        )
+        if task_name == "humaneval":
+            kwargs["nuggets_config"] = nuggets_config
         return TASK_REGISTRY[task_name](**kwargs)
     except KeyError:
         print("Available tasks:")
