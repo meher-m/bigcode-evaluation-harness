@@ -183,10 +183,10 @@ def parse_args():
         help="Path for saving the code generations",
     )
     parser.add_argument(
-        "--save_results_path",
+        "--save_results_dir",
         type=str,
-        default="results.json",
-        help="Path for saving the results with generations",
+        default="results",
+        help="Directory for saving the results including generations",
     )
     parser.add_argument(
         "--save_references",

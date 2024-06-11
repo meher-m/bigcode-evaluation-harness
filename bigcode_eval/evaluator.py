@@ -113,14 +113,15 @@ class Evaluator:
                 # 'task_id', 'passed', 'result', and 'completion_id' as its keys. Extracting this dictionary to save. 
                 simplified_fine_grain_res[task_id] = fine_grain_results[task_id][0][1]
 
-            if self.args.save_results_path:
-                # Dump to a new json that has {'task_id': --, 'generation': --, 'result': --}
-                save_results_path = f"{self.args.save_results_path}_{task_name}_results.json"
+            if self.args.save_results_dir:
+                os.makedirs(self.args.save_results_dir, exist_ok=True)
+                save_results_path = f"{self.args.save_results_dir}/{task_name}_results.json"
 
                 # Add the generations to the fine grain results and then dump to a new json
                 for task_id in simplified_fine_grain_res:
                     simplified_fine_grain_res[task_id]["generation"] = generations[task_id]
 
+                # Dump to a new json that has {'task_id': --, 'generation': --, 'result': --}
                 with open(save_results_path, "w") as fp:
                     json.dump(simplified_fine_grain_res, fp)
                     print(f"results with generation were saved at {save_results_path}")
