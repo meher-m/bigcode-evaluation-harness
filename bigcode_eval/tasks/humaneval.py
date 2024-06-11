@@ -50,10 +50,10 @@ class GeneralHumanEval(Task):
     def __init__(
             self,
             strip_prompt,
-            nuggets_config,
             k=[1, 10, 100],
             num_workers=16,
             timeout=3.0,
+            nuggets_config=None
     ):
         super().__init__(
             stop_words=["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif", "\n```", "<file_sep>"],
@@ -69,9 +69,6 @@ class GeneralHumanEval(Task):
     def get_dataset(self):
         """Returns dataset for the task or an iterable of any object, that get_prompt can handle"""
         return self.dataset["test"]
-
-    def get_start_context(self):
-        return "Implement solutions to the following coding tasks given the function heading:\n"
 
     def get_one_shot_example(self):
 
@@ -100,7 +97,7 @@ class GeneralHumanEval(Task):
         prompt = self.get_base_prompt(doc)
 
         # Cases: one shot with context, one shot without context, zero shot
-        start_context = self.get_start_context()
+        start_context = "Implement solutions to the following coding tasks given the function heading:\n"
         if self.nuggets_config.one_shot and self.nuggets_config.add_context:
             return start_context + self.get_one_shot_example() + prompt
         elif self.nuggets_config.one_shot:

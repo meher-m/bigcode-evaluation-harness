@@ -115,7 +115,7 @@ class Evaluator:
 
             if self.args.save_results_path:
                 # Dump to a new json that has {'task_id': --, 'generation': --, 'result': --}
-                save_results_path = f"{self.args.save_results_path}_{task_name}.json"
+                save_results_path = f"{self.args.save_results_path}_{task_name}_results.json"
 
                 # Add the generations to the fine grain results and then dump to a new json
                 for task_id in simplified_fine_grain_res:
