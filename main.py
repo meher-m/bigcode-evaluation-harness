@@ -183,6 +183,12 @@ def parse_args():
         help="Path for saving the code generations",
     )
     parser.add_argument(
+        "--save_results_dir",
+        type=str,
+        default="results",
+        help="Directory for saving the results including generations",
+    )
+    parser.add_argument(
         "--save_references",
         action="store_true",
         help="Whether to save reference solutions/tests",
@@ -209,6 +215,23 @@ def parse_args():
         "--check_references",
         action="store_true",
         help="Don't run generation but benchmark groundtruth (useful for debugging)",
+    )
+    parser.add_argument(
+        "--humaneval_one_shot",
+        action="store_true",
+        help="Turn on one_shot prompting for Nuggets evaluation with HumanEval",
+    )
+    parser.add_argument(
+        "--humaneval_prompt_quality",
+        type=int,
+        choices=[0,1,2],
+        default=0,
+        help="Choose whether to use the bad (0), decent (1), or correct (2) solution for the one shot task with HumanEval",
+    )
+    parser.add_argument(
+        "--humaneval_add_context",
+        action="store_true",
+        help="Use the prompt template with added context in HumanEval",
     )
     return parser.parse_args()
 
