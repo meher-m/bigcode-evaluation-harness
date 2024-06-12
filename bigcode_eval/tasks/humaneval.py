@@ -70,7 +70,7 @@ class GeneralHumanEval(Task):
         """Returns dataset for the task or an iterable of any object, that get_prompt can handle"""
         return self.dataset["test"]
 
-    def get_one_shot_example(self):
+    def fewshot_examples(self):
 
         # For now, hard-coding the one shot example to be the last task in the HumanEval dataset
         # Also hard-coding the three sample solutions (good, decent, and bad) here
@@ -99,9 +99,9 @@ class GeneralHumanEval(Task):
         # Cases: one shot with context, one shot without context, zero shot
         start_context = "Implement solutions to the following coding tasks given the function heading:\n"
         if self.nuggets_config.one_shot and self.nuggets_config.add_context:
-            return start_context + self.get_one_shot_example() + prompt
+            return start_context + self.fewshot_examples() + prompt
         elif self.nuggets_config.one_shot:
-            return self.get_one_shot_example() + prompt
+            return self.fewshot_examples() + prompt
         else:
             return prompt
 
