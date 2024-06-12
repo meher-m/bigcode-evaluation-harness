@@ -217,11 +217,6 @@ def parse_args():
         help="Don't run generation but benchmark groundtruth (useful for debugging)",
     )
     parser.add_argument(
-        "--humaneval_one_shot",
-        action="store_true",
-        help="Turn on one_shot prompting for Nuggets evaluation with HumanEval",
-    )
-    parser.add_argument(
         "--humaneval_prompt_quality",
         type=int,
         choices=[0,1,2],
@@ -232,8 +227,14 @@ def parse_args():
         "--humaneval_example_idxs",
         nargs="*",
         type=int,
-        default=[163],
+        default=None,
         help="Chose example(s) to be used for few-shot prompt. All ints in range [0, 163] for HumanEval. E.g --humaneval_example_idxs 161 162 163",
+    )
+    parser.add_argument(
+        "--humaneval_examples_path",
+        type=str,
+        default=None,
+        help="Link to json file of examples for few-shot prompting. E.g 'bigcode_eval/tasks/few_shot_examples/codexglue_text_to_text_few_shot_prompts.json'",
     )
     parser.add_argument(
         "--humaneval_add_context",

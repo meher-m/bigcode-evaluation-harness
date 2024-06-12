@@ -162,7 +162,7 @@ def compute_code_eval(predictions, references, k=[1, 10, 100], num_workers=4, ti
         correct.append(sum(passed))
     total = np.array(total)
     correct = np.array(correct)
-    print(f"TOTAL: {total}\n\nCORRECT: {correct}\n\n")
+
     ks = k
     if not isinstance(ks, (list, tuple)):
         ks = [ks]

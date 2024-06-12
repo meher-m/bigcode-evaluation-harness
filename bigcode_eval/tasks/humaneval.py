@@ -8,7 +8,7 @@ They were handwritten to ensure not to be included in the training set of code g
 Homepage: https://github.com/openai/human-eval
 """
 
-
+import json
 from bigcode_eval.base import Task
 from bigcode_eval.tasks.custom_metrics.code_eval import compute_code_eval
 
@@ -71,24 +71,29 @@ class GeneralHumanEval(Task):
         return self.dataset["test"]
 
     def fewshot_examples(self):
+        # If arguments passed in as indices, build examples from HumanEval dataset
+        # Otherwise, load examples from file
+        if self.nuggets_config.example_idxs:
+            examples = ""
+            for example_idx in self.example_idxs:
+                # For now, hard-coding the one shot example to be the last task in the HumanEval dataset
+                # Also hard-coding the three sample solutions (good, decent, and bad) here
+                sample = self.dataset["test"][example_idx]
+                correct_sol = sample["canonical_solution"]
+                really_bad_sol = "    cat: cat cat\n    dog dog dog;\n    return [giraffe if giraffe for giraffe in giraffe]"
+                decent_sol = "    lower = 2\n    upper = 8\n    return [i if i % 2 = 0 for i in range(lower, upper)]"
+                
+                # Create a list of all the different task answers possible for various experiments
+                example_task_answers = [really_bad_sol, decent_sol, correct_sol]
 
-        prompt = ""
-        
-        for example_idx in self.example_idxs:
-            # For now, hard-coding the one shot example to be the last task in the HumanEval dataset
-            # Also hard-coding the three sample solutions (good, decent, and bad) here
-            sample = self.dataset["test"][example_idx]
-            correct_sol = sample["canonical_solution"]
-            really_bad_sol = "    cat: cat cat\n    dog dog dog;\n    return [giraffe if giraffe for giraffe in giraffe]"
-            decent_sol = "    lower = 2\n    upper = 8\n    return [i if i % 2 = 0 for i in range(lower, upper)]"
-            
-            # Create a list of all the different task answers possible for various experiments
-            example_task_answers = [really_bad_sol, decent_sol, correct_sol]
+                # If add_context is set, add additional context to the prompt. 
+                examples += sample["prompt"] + "\n" + example_task_answers[self.prompt_quality] + "\n"
 
-            # If add_context is set, add additional context to the prompt. 
-            prompt += sample["prompt"] + "\n" + example_task_answers[self.prompt_quality] + "\n"
-
-        return prompt
+            return examples
+        else:
+            with open(self.nuggets_config.examples_path, "r") as file:
+                examples = json.load(file)
+        return examples
 
     def get_base_prompt(self, doc):
         # Strip prompt if required
@@ -100,16 +105,21 @@ class GeneralHumanEval(Task):
     def get_prompt(self, doc):
         """Builds the prompt for the LM to generate from."""
         self.doc = doc
-        prompt = self.get_base_prompt(doc)
+        base_prompt = self.get_base_prompt(doc)
 
-        # Cases: one shot with context, one shot without context, zero shot
+        # Cases: few shot with context, few shot without context, zero shot
+        use_few_shot = self.nuggets_config.example_idxs or self.nuggets_config.examples_path
         start_context = "Implement solutions to the following coding tasks given the function heading:\n"
-        if self.nuggets_config.one_shot and self.nuggets_config.add_context:
-            return start_context + self.fewshot_examples() + prompt
-        elif self.nuggets_config.one_shot:
-            return self.fewshot_examples() + prompt
-        else:
-            return prompt
+
+        prompt = ""
+        if self.nuggets_config.add_context:
+            prompt += start_context
+
+        if use_few_shot:
+            prompt += self.fewshot_examples()
+
+        prompt += base_prompt
+        return prompt
 
     def get_reference(self, doc):
         """Builds the reference solution for the doc (sample from the test dataset)."""
@@ -127,8 +137,8 @@ class GeneralHumanEval(Task):
         """
         # Want to remove one shot example and any context when post processing
         prompt = self.get_prompt(self.dataset["test"][idx])
-        
-        generation = generation[len(prompt) :]
+
+        generation = generation[len(prompt):]
 
         base_prompt = self.get_base_prompt(self.doc)
 
