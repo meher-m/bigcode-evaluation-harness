@@ -183,10 +183,10 @@ def parse_args():
         help="Path for saving the code generations",
     )
     parser.add_argument(
-        "--save_results_path",
+        "--save_results_dir",
         type=str,
-        default="results.json",
-        help="Path for saving the results with generations",
+        default="results",
+        help="Directory for saving the results including generations",
     )
     parser.add_argument(
         "--save_references",
@@ -217,28 +217,28 @@ def parse_args():
         help="Don't run generation but benchmark groundtruth (useful for debugging)",
     )
     parser.add_argument(
-        "--one_shot",
+        "--humaneval_one_shot",
         action="store_true",
-        help="Turn on one_shot prompting for Nuggets evaluation",
+        help="Turn on one_shot prompting for Nuggets evaluation with HumanEval",
     )
     parser.add_argument(
-        "--prompt_quality",
+        "--humaneval_prompt_quality",
         type=int,
         choices=[0,1,2],
         default=0,
-        help="Choose whether to use the bad (0), decent (1), or correct (2) solution for the one shot task",
+        help="Choose whether to use the bad (0), decent (1), or correct (2) solution for the one shot task with HumanEval",
     )
     parser.add_argument(
-        "--example_idxs",
+        "--humaneval_example_idxs",
         nargs="*",
         type=int,
         default=[163],
-        help="Chose example(s) to be used for few-shot prompt. All ints in range [0, 163] for HumanEval. E.g --example_idxs 161 162 163",
+        help="Chose example(s) to be used for few-shot prompt. All ints in range [0, 163] for HumanEval. E.g --humaneval_example_idxs 161 162 163",
     )
     parser.add_argument(
-        "--add_context",
+        "--humaneval_add_context",
         action="store_true",
-        help="Turn on to use the prompt template with added context",
+        help="Use the prompt template with added context in HumanEval",
     )
     return parser.parse_args()
 

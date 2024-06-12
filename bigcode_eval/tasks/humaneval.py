@@ -47,7 +47,14 @@ class GeneralHumanEval(Task):
 
     DATASET_PATH = "openai_humaneval"
 
-    def __init__(self, strip_prompt, k=[1, 10, 100], num_workers=16, timeout=3.0, one_shot=False, prompt_quality=2, add_context=False, example_idxs=[163]):
+    def __init__(
+            self,
+            strip_prompt,
+            k=[1, 10, 100],
+            num_workers=16,
+            timeout=3.0,
+            nuggets_config=None
+    ):
         super().__init__(
             stop_words=["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif", "\n```", "<file_sep>"],
             requires_execution=True,
@@ -56,22 +63,14 @@ class GeneralHumanEval(Task):
         self.k = k
         self.num_workers = num_workers
         self.timeout = timeout
-
-        # Used for Nuggets experiments
-        self.one_shot = one_shot
-        self.prompt_quality = prompt_quality
-        self.add_context = add_context
-        self.example_idxs = example_idxs
         self.doc = None
+        self.nuggets_config = nuggets_config
 
     def get_dataset(self):
         """Returns dataset for the task or an iterable of any object, that get_prompt can handle"""
         return self.dataset["test"]
 
-    def get_start_context(self):
-        return "Implement solutions to the following coding tasks given the function heading:\n"
-
-    def get_prompt_examples(self):
+    def fewshot_examples(self):
 
         prompt = ""
         
@@ -104,21 +103,19 @@ class GeneralHumanEval(Task):
         prompt = self.get_base_prompt(doc)
 
         # Cases: one shot with context, one shot without context, zero shot
-        start_context = self.get_start_context()
-        if self.one_shot and self.add_context:
-            return start_context + self.get_prompt_examples() + prompt
-        elif self.one_shot:
-            return self.get_prompt_examples() + prompt
+        start_context = "Implement solutions to the following coding tasks given the function heading:\n"
+        if self.nuggets_config.one_shot and self.nuggets_config.add_context:
+            return start_context + self.fewshot_examples() + prompt
+        elif self.nuggets_config.one_shot:
+            return self.fewshot_examples() + prompt
         else:
             return prompt
-
 
     def get_reference(self, doc):
         """Builds the reference solution for the doc (sample from the test dataset)."""
         test_func = doc["test"]
         entry_point = f"check({doc['entry_point']})"
         return "\n" + test_func + "\n" + entry_point
-
 
     def postprocess_generation(self, generation, idx):
         """Defines the postprocessing for a LM generation.
@@ -153,9 +150,4 @@ class GeneralHumanEval(Task):
             timeout=self.timeout,
         )
 
-        simplified_fine_grain_res = {}
-        for task_id in fine_grain_results:
-            # The element at each task_id is a single element list. The element is a tuple (0, dict) where the dict contains
-            # 'task_id', 'passed', 'result', and 'completion_id' as its keys. Extracting this dictionary to save. 
-            simplified_fine_grain_res[task_id] = fine_grain_results[task_id][0][1]
-        return results, simplified_fine_grain_res
+        return results, fine_grain_results
