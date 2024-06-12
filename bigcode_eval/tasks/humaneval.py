@@ -47,7 +47,14 @@ class GeneralHumanEval(Task):
 
     DATASET_PATH = "openai_humaneval"
 
-    def __init__(self, strip_prompt, k=[1, 10, 100], num_workers=16, timeout=3.0):
+    def __init__(
+            self,
+            strip_prompt,
+            k=[1, 10, 100],
+            num_workers=16,
+            timeout=3.0,
+            nuggets_config=None
+    ):
         super().__init__(
             stop_words=["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif", "\n```", "<file_sep>"],
             requires_execution=True,
@@ -56,24 +63,53 @@ class GeneralHumanEval(Task):
         self.k = k
         self.num_workers = num_workers
         self.timeout = timeout
+        self.doc = None
+        self.nuggets_config = nuggets_config
 
     def get_dataset(self):
         """Returns dataset for the task or an iterable of any object, that get_prompt can handle"""
         return self.dataset["test"]
 
-    def get_prompt(self, doc):
-        """Builds the prompt for the LM to generate from."""
+    def fewshot_examples(self):
+
+        # For now, hard-coding the one shot example to be the last task in the HumanEval dataset
+        # Also hard-coding the three sample solutions (good, decent, and bad) here
+        final_sample = self.dataset["test"][-1]
+        correct_sol = final_sample["canonical_solution"]
+        really_bad_sol = "    cat: cat cat\n    dog dog dog;\n    return [giraffe if giraffe for giraffe in giraffe]"
+        decent_sol = "    lower = 2\n    upper = 8\n    return [i if i % 2 = 0 for i in range(lower, upper)]"
+        
+        # Create a list of all the different task answers possible for various experiments
+        example_task_answers = [really_bad_sol, decent_sol, correct_sol]
+
+        return final_sample["prompt"] + "\n" + example_task_answers[self.nuggets_config.prompt_quality] + "\n"
+
+    def get_base_prompt(self, doc):
+        # Strip prompt if required
         if self.strip_prompt:
             return doc["prompt"].strip()
         else:
             return doc["prompt"]
+
+    def get_prompt(self, doc):
+        """Builds the prompt for the LM to generate from."""
+        self.doc = doc
+        prompt = self.get_base_prompt(doc)
+
+        # Cases: one shot with context, one shot without context, zero shot
+        start_context = "Implement solutions to the following coding tasks given the function heading:\n"
+        if self.nuggets_config.one_shot and self.nuggets_config.add_context:
+            return start_context + self.fewshot_examples() + prompt
+        elif self.nuggets_config.one_shot:
+            return self.fewshot_examples() + prompt
+        else:
+            return prompt
 
     def get_reference(self, doc):
         """Builds the reference solution for the doc (sample from the test dataset)."""
         test_func = doc["test"]
         entry_point = f"check({doc['entry_point']})"
         return "\n" + test_func + "\n" + entry_point
-
 
     def postprocess_generation(self, generation, idx):
         """Defines the postprocessing for a LM generation.
@@ -83,9 +119,14 @@ class GeneralHumanEval(Task):
             index of doc in the dataset to which the generation belongs
             (not used for Humaneval-Task)
         """
+        # Want to remove one shot example and any context when post processing
         prompt = self.get_prompt(self.dataset["test"][idx])
+        
         generation = generation[len(prompt) :]
-        return prompt + self._stop_at_stop_token(generation, self.stop_words)
+
+        base_prompt = self.get_base_prompt(self.doc)
+
+        return base_prompt + self._stop_at_stop_token(generation, self.stop_words)
 
     def process_results(self, generations, references):
         """Takes the list of LM generations and evaluates them against ground truth references,
@@ -95,11 +136,12 @@ class GeneralHumanEval(Task):
         :param references: list(str)
             list of str containing refrences
         """
-        results, _ = compute_code_eval(
+        results, fine_grain_results = compute_code_eval(
             references=references,
             predictions=generations,
             k=self.k,
             num_workers=self.num_workers,
             timeout=self.timeout,
         )
-        return results
+
+        return results, fine_grain_results
