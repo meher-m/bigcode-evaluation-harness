@@ -51,6 +51,7 @@ def parallel_generations(
         save_every_k_tasks: int = -1,
         intermediate_generations: Optional[List[Optional[List[Optional[str]]]]] = None,
         intermediate_save_generations_path: Optional[str] = None,
+        raw_generation_path: Optional[str] = None
 ):
     if args.load_generations_path:
         # load generated code
@@ -138,7 +139,7 @@ def parallel_generations(
         # model.to() is not supported for 8bit and 4bit models
         model, ds_loader = accelerator.prepare(model, ds_loader)
 
-    generation_dict = complete_code(
+    generations = complete_code(
         task,
         accelerator,
         model,
@@ -154,6 +155,7 @@ def parallel_generations(
         save_every_k_tasks=save_every_k_tasks,
         intermediate_generations=intermediate_generations,
         intermediate_save_generations_path=intermediate_save_generations_path,
+        raw_generation_path=raw_generation_path,
         **gen_kwargs,
     )
-    return generation_dict
+    return generations

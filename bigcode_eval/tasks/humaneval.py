@@ -75,7 +75,7 @@ class GeneralHumanEval(Task):
         # Otherwise, load examples from file
         if self.nuggets_config.example_idxs:
             examples = ""
-            for example_idx in self.example_idxs:
+            for example_idx in self.nuggets_config.example_idxs:
                 # For now, hard-coding the one shot example to be the last task in the HumanEval dataset
                 # Also hard-coding the three sample solutions (good, decent, and bad) here
                 sample = self.dataset["test"][example_idx]
@@ -87,7 +87,8 @@ class GeneralHumanEval(Task):
                 example_task_answers = [really_bad_sol, decent_sol, correct_sol]
 
                 # If add_context is set, add additional context to the prompt. 
-                examples += sample["prompt"] + "\n" + example_task_answers[self.prompt_quality] + "\n"
+                examples += sample["prompt"] + "\n"
+                examples += example_task_answers[self.nuggets_config.prompt_quality] + "\n"
 
             return examples
         else:

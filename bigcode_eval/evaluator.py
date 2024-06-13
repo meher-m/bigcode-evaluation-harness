@@ -63,10 +63,13 @@ class Evaluator:
         if intermediate_generations:
             curr_generations = [gen for gen in intermediate_generations if gen]
             n_tasks -= len(curr_generations)
+
         intermediate_save_generations_path = f"{os.path.splitext(self.args.save_generations_path)[0]}_{task_name}_intermediate.json"
+        raw_generation_path = f"{self.args.save_results_dir}/{task_name}_raw_generations.json"
+
         curr_sample_idx = len(curr_generations)
 
-        generation_dict = parallel_generations(
+        generations = parallel_generations(
             task,
             dataset,
             self.accelerator,
@@ -78,19 +81,9 @@ class Evaluator:
             save_every_k_tasks=self.args.save_every_k_tasks,
             intermediate_generations=curr_generations,
             intermediate_save_generations_path=intermediate_save_generations_path,
+            raw_generation_path=raw_generation_path
         )
 
-        raw_generations = generation_dict["raw_generations"]
-        if self.args.save_results_dir:
-            # Dump raw generations (including all few shot examples) to a new json to verify that prompt creation is as expected
-            # Dump of the form {'task_id': --, 'generation': --, 'result': --}
-            raw_generation_path = f"{self.args.save_results_dir}/{task_name}_raw_generations.json"
-
-            with open(raw_generation_path, "w") as fp:
-                json.dump(raw_generations, fp)
-                print(f"raw generation was saved at {raw_generation_path}")
-
-        generations = generation_dict["generations"]
         if len(generations[0]) > self.args.n_samples:
             generations = [l[: self.args.n_samples] for l in generations]
             warnings.warn(

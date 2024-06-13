@@ -238,6 +238,7 @@ def complete_code(
     save_every_k_tasks: int = -1,
     intermediate_generations: Optional[List[Optional[List[Optional[str]]]]] = None,
     intermediate_save_generations_path: Optional[str] = None,
+    raw_generation_path: Optional[str] = None,
     **gen_kwargs,
 ):
     """Generate multiple codes for each task in the dataset using multiple GPUs with accelerate.
@@ -353,17 +354,22 @@ def complete_code(
                 # reset gen_token_dict - prevent redundant decoding
                 gen_token_dict = defaultdict(list)
 
-    raw_code_gens = copy.deepcopy(code_gens)
-    raw_code_gens = update_code_gens(
-        task,
-        tokenizer,
-        limit_start,
-        prefix,
-        instruction_tokens,
-        False,
-        raw_code_gens,
-        gen_token_dict,
-    )
+    if raw_generation_path:
+        raw_code_gens = copy.deepcopy(code_gens)
+        raw_code_gens = update_code_gens(
+            task,
+            tokenizer,
+            limit_start,
+            prefix,
+            instruction_tokens,
+            False,
+            raw_code_gens,
+            gen_token_dict,
+        )
+
+        with open(raw_generation_path, "w") as fp:
+            json.dump(raw_code_gens, fp)
+            print(f"raw generation was saved at {raw_generation_path}")
 
     code_gens = update_code_gens(
         task,
@@ -377,7 +383,7 @@ def complete_code(
     )
 
     generations.extend(code_gens)
-    return {"generations": generations, "raw_generations": raw_code_gens}
+    return generations
 
 
 def update_code_gens(
