@@ -354,6 +354,7 @@ def complete_code(
                 # reset gen_token_dict - prevent redundant decoding
                 gen_token_dict = defaultdict(list)
 
+    # Save raw generation including any few shot examples that are a part of the prompt.
     if raw_generation_path:
         raw_code_gens = copy.deepcopy(code_gens)
         raw_code_gens = update_code_gens(
@@ -362,9 +363,9 @@ def complete_code(
             limit_start,
             prefix,
             instruction_tokens,
-            False,
-            raw_code_gens,
-            gen_token_dict,
+            postprocess=False,
+            code_gens=raw_code_gens,
+            gen_token_dict=gen_token_dict,
         )
 
         with open(raw_generation_path, "w") as fp:

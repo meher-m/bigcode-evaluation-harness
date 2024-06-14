@@ -66,6 +66,7 @@ class Evaluator:
 
         intermediate_save_generations_path = f"{os.path.splitext(self.args.save_generations_path)[0]}_{task_name}_intermediate.json"
         raw_generation_path = f"{self.args.save_results_dir}/{task_name}_raw_generations.json"
+        os.makedirs(self.args.save_results_dir, exist_ok=True)
 
         curr_sample_idx = len(curr_generations)
 
