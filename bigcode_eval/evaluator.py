@@ -63,7 +63,11 @@ class Evaluator:
         if intermediate_generations:
             curr_generations = [gen for gen in intermediate_generations if gen]
             n_tasks -= len(curr_generations)
+
         intermediate_save_generations_path = f"{os.path.splitext(self.args.save_generations_path)[0]}_{task_name}_intermediate.json"
+        raw_generation_path = f"{self.args.save_results_dir}/{task_name}_raw_generations.json"
+        os.makedirs(self.args.save_results_dir, exist_ok=True)
+
         curr_sample_idx = len(curr_generations)
 
         generations = parallel_generations(
@@ -78,6 +82,7 @@ class Evaluator:
             save_every_k_tasks=self.args.save_every_k_tasks,
             intermediate_generations=curr_generations,
             intermediate_save_generations_path=intermediate_save_generations_path,
+            raw_generation_path=raw_generation_path
         )
 
         if len(generations[0]) > self.args.n_samples:

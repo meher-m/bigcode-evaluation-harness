@@ -39,9 +39,10 @@ ALL_TASKS = sorted(list(TASK_REGISTRY))
 
 @dataclass
 class NuggetsConfig():
-    one_shot: bool = False
     prompt_quality: int = 2
     add_context: bool = False
+    example_idxs: list = None
+    examples_path: str = None
 
 
 def get_task(task_name, args=None):
@@ -53,9 +54,10 @@ def get_task(task_name, args=None):
             kwargs["load_data_path"] = args.load_data_path
 
         nuggets_config = NuggetsConfig(
-            args.humaneval_one_shot,
             args.humaneval_prompt_quality,
-            args.humaneval_add_context
+            args.humaneval_add_context,
+            args.humaneval_example_idxs,
+            args.humaneval_examples_path
         )
         if task_name == "humaneval":
             kwargs["nuggets_config"] = nuggets_config
