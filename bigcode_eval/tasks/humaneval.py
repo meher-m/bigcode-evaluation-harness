@@ -65,12 +65,13 @@ class GeneralHumanEval(Task):
         self.timeout = timeout
         self.doc = None
         self.nuggets_config = nuggets_config
+        self.use_chat_template = nuggets_config.use_chat_template
 
     def get_dataset(self):
         """Returns dataset for the task or an iterable of any object, that get_prompt can handle"""
         return self.dataset["test"]
 
-    def fewshot_examples(self):
+    def fewshot_examples(self, tokenizer=None):
         # If arguments passed in as indices, build examples from HumanEval dataset
         # Otherwise, load examples from file
         if self.nuggets_config.example_idxs:
@@ -93,7 +94,24 @@ class GeneralHumanEval(Task):
             return examples
         else:
             with open(self.nuggets_config.examples_path, "r") as file:
-                examples = json.load(file)
+                data = json.load(file)
+            
+            if self.use_chat_template:
+                examples = ""
+                for example in data:
+                    # Hard coded using only the first turn for now. Should expand to using all the turns. 
+                    example_to_template = example["messages"][:2]
+                    examples += tokenizer.apply_chat_template(example_to_template, add_generation_prompt=False, tokenize=False)
+            else:
+                examples = ""
+                # Loop through each few-shot example
+                for example in data:
+
+                    # Use all turns
+                    messages = example["messages"]
+                    for message in messages:
+                        examples += message["content"] + "\n"
+
         return examples
 
     def get_base_prompt(self, doc):
@@ -103,7 +121,7 @@ class GeneralHumanEval(Task):
         else:
             return doc["prompt"]
 
-    def get_prompt(self, doc):
+    def get_prompt(self, doc, tokenizer=None):
         """Builds the prompt for the LM to generate from."""
         self.doc = doc
         base_prompt = self.get_base_prompt(doc)
@@ -117,9 +135,22 @@ class GeneralHumanEval(Task):
             prompt += start_context
 
         if use_few_shot:
-            prompt += self.fewshot_examples()
+            prompt += self.fewshot_examples(tokenizer)
 
-        prompt += base_prompt
+        # If using chat template, we need to add the user role to the prompt
+        if self.use_chat_template:
+            if not tokenizer:
+                raise ValueError("Tokenizer must be provided when using chat template")
+            
+            base_prompt_to_template = [
+                {"role": "user", "content": f"I am a software engineering working in Python. Can you help me implement a function with the following header and description.\n{base_prompt}\n"},
+            ]
+            base_prompt_templated = tokenizer.apply_chat_template(base_prompt_to_template, add_generation_prompt=True, tokenize=False)
+
+            prompt += base_prompt_templated
+        else:
+            prompt += base_prompt
+
         return prompt
 
     def get_reference(self, doc):
@@ -128,7 +159,7 @@ class GeneralHumanEval(Task):
         entry_point = f"check({doc['entry_point']})"
         return "\n" + test_func + "\n" + entry_point
 
-    def postprocess_generation(self, generation, idx):
+    def postprocess_generation(self, generation, idx, tokenizer=None):
         """Defines the postprocessing for a LM generation.
         :param generation: str
             code generation from LM
@@ -137,13 +168,24 @@ class GeneralHumanEval(Task):
             (not used for Humaneval-Task)
         """
         # Want to remove one shot example and any context when post processing
-        prompt = self.get_prompt(self.dataset["test"][idx])
-
+        prompt = self.get_prompt(self.dataset["test"][idx], tokenizer)
         generation = generation[len(prompt):]
-
         base_prompt = self.get_base_prompt(self.doc)
 
-        return base_prompt + self._stop_at_stop_token(generation, self.stop_words)
+        ### Templating post_process
+        # Find the ``` lines and return what is in between them
+        if self.use_chat_template:
+            try:
+                start_idx = generation.index("```")
+                new_start_idx = generation[start_idx:].index("\n") + start_idx
+                end_idx = generation.find("```", new_start_idx + 1)
+                generation = generation[new_start_idx:end_idx].strip()
+            except Exception as e:
+                raise ValueError("Failed to find '```' in generation") from e
+            return generation
+        else:
+            processed_generation = base_prompt + "\n" + self._stop_at_stop_token(generation, self.stop_words)
+            return processed_generation
 
     def process_results(self, generations, references):
         """Takes the list of LM generations and evaluates them against ground truth references,

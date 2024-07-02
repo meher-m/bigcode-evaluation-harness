@@ -241,6 +241,11 @@ def parse_args():
         action="store_true",
         help="Use the prompt template with added context in HumanEval",
     )
+    parser.add_argument(
+        "--humaneval_use_chat_template",
+        action="store_true",
+        help="Use the Llama-3 Chat template for inference in HumanEval",
+    )
     return parser.parse_args()
 
 
@@ -307,7 +312,7 @@ def main():
             print("Loading model in 4bit")
             model_kwargs["load_in_4bit"] = args.load_in_4bit
             model_kwargs["torch_dtype"] = torch.float16
-            model_kwargs["bnb_4bit_compute_dtype"] = torch.float16            
+            model_kwargs["bnb_4bit_compute_dtype"] = torch.float16
             model_kwargs["device_map"] = {"": accelerator.process_index}
         else:
             print(f"Loading model in {args.precision}")

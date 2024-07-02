@@ -5,6 +5,7 @@ import re
 import warnings
 from collections import defaultdict
 from typing import List, Optional
+from transformers import AutoTokenizer
 
 import torch
 from torch.utils.data import IterableDataset
@@ -54,7 +55,7 @@ class TokenizedDataset(IterableDataset):
         infill = []
         instruction = []
         for sample in range(self.limit_start, self.limit_start + self.n_tasks):
-            prompt_contents = self.task.get_prompt(self.dataset[sample])
+            prompt_contents = self.task.get_prompt(self.dataset[sample], self.tokenizer)
             if isinstance(prompt_contents, str):
                 # Normal code completion mode
                 infill.append(False)
@@ -302,9 +303,14 @@ def complete_code(
                     # In transformers (>= 4.40.2), if the length of input_ids == max_length, a ValueError is thrown.
                     # We want to ignore this error in order to reproduce old results with mbpp.
                     try:
+                        terminators = [
+                            tokenizer.eos_token_id,
+                            tokenizer.convert_tokens_to_ids("<|eot_id|>")
+                        ]
                         generated_tokens = model.generate(
                             input_ids=inputs,
                             num_return_sequences=batch_size,
+                            eos_token_id=terminators,
                             **gen_kwargs,
                         )
                     except ValueError as e:
@@ -428,7 +434,7 @@ def update_code_gens(
                 gen_code = gen_code[len(prefix) :]
             if postprocess:
                 code_gens[sample].append(
-                    task.postprocess_generation(gen_code, int(sample) + limit_start)
+                    task.postprocess_generation(gen_code, int(sample) + limit_start, tokenizer)
                 )
             else:
                 warnings.warn(
