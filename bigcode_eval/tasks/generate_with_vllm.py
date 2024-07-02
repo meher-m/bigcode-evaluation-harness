@@ -8,6 +8,7 @@ import aiobotocore.session
 from datasets import Dataset, DatasetDict, load_from_disk, load_dataset
 import os
 import argparse
+from transformers import AutoTokenizer
 
 STOP_WORDS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif", "\n```", "<file_sep>"]
 
@@ -88,8 +89,8 @@ def fewshot_examples(nuggets_config, dataset, tokenizer=None):
         if nuggets_config.use_chat_template:
             examples = ""
             for example in data:
-                # Hard coded using only the first turn for now. Should expand to using all the turns. 
-                example_to_template = example["messages"][:2]
+                # Use all turns 
+                example_to_template = example["messages"]
                 examples += tokenizer.apply_chat_template(example_to_template, add_generation_prompt=False, tokenize=False)
         else:
             examples = ""
@@ -137,6 +138,8 @@ def get_prompt(nuggets_config, dataset, doc, tokenizer=None):
         base_prompt_templated = tokenizer.apply_chat_template(base_prompt_to_template, add_generation_prompt=True, tokenize=False)
 
         prompt += base_prompt_templated
+
+        prompt += base_prompt
     else:
         prompt += base_prompt
 
@@ -169,24 +172,13 @@ def postprocess_generation(nuggets_config, dataset, generation, idx, tokenizer=N
     # Want to remove one shot example and any context when post processing
     base_prompt = get_base_prompt(dataset[idx])
 
-    ### Templating post_process
-    # Find the ``` lines and return what is in between them
-    if nuggets_config.use_chat_template:
-        try:
-            start_idx = generation.index("```")
-            new_start_idx = generation[start_idx:].index("\n") + start_idx
-            end_idx = generation.find("```", new_start_idx + 1)
-            generation = generation[new_start_idx:end_idx].strip()
-        except Exception as e:
-            raise ValueError("Failed to find '```' in generation") from e
-        return generation
-    else:
-        processed_generation = base_prompt + "\n" + _stop_at_stop_token(generation, STOP_WORDS)
-        return processed_generation
+    # Templating post_process
+    processed_generation = base_prompt + "\n" + _stop_at_stop_token(generation, STOP_WORDS)
+    return processed_generation
         
 
 def generate(nuggets_config, dataset, llm, prompts):
-    sampling_params = SamplingParams(n=1, temperature=0.0, max_tokens=16000, stop=STOP_WORDS) #8192)
+    sampling_params = SamplingParams(n=1, temperature=0.0, max_tokens=16000, stop=STOP_WORDS)
     
     outputs = llm.generate(prompts, sampling_params)
 
@@ -238,7 +230,6 @@ def main():
     llm = LLM(model=args.model, tensor_parallel_size=4)
 
     # Run generate_for_one_shot for a bunch of different examples
-    # "s3://scale-ml/users/mehermankikar/dagster_ingest_runs/e2e_run1_1200_2/dataset/"
     e2e_run_1_ds = args.s3_dataset_path
     e2e_ds = load_ds_s3(e2e_run_1_ds)
     e2e_ds = e2e_ds["train"]
@@ -250,10 +241,9 @@ def main():
         
         start_time = time.time()
         print(f"Starting at task {i}")
+
         # save it as an example
-        # vllm_code_llama_generation_all_turn
         home_directory = os.path.expanduser('~')
-        print(home_directory)
         json_path = os.path.join(f"{home_directory}/bigcode-evaluation-harness/bigcode_eval/tasks/vllm_few_shot_examples/", f"public_ots_{i}.json")
         with open(json_path, "w") as f:
             json.dump([task], f)
@@ -267,6 +257,7 @@ def main():
             use_chat_template=args.use_chat_template
         )
         one_shot_task_generation = generate_for_one_shot(args, nuggets_config, llm, dataset)
+
         full_results[i] = one_shot_task_generation
 
         # Delete the file
