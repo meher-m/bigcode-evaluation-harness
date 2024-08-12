@@ -74,6 +74,7 @@ class GeneralHumanEval(Task):
     def fewshot_examples(self, tokenizer=None):
         # If arguments passed in as indices, build examples from HumanEval dataset
         # Otherwise, load examples from file
+        few_shot_turns = []
         if self.nuggets_config.example_idxs:
             examples = ""
             for example_idx in self.nuggets_config.example_idxs:
@@ -88,8 +89,13 @@ class GeneralHumanEval(Task):
                 example_task_answers = [really_bad_sol, decent_sol, correct_sol]
 
                 # If add_context is set, add additional context to the prompt. 
-                examples += sample["prompt"] + "\n"
-                examples += example_task_answers[self.nuggets_config.prompt_quality] + "\n"
+                # examples += sample["prompt"] + "\n"
+                # examples += example_task_answers[self.nuggets_config.prompt_quality] + "\n"
+
+                # MEHER 08-07-24 the correct thing to do is the following
+                few_shot_turns.append({"role": "user", "content": sample["prompt"] + "\n"})
+                few_shot_turns.append({"role": "assistant", "content": example_task_answers[self.nuggets_config.prompt_quality] + "\n"})
+            examples += tokenizer.apply_chat_template(few_shot_turns, add_generation_prompt=False, tokenize=False)
 
             return examples
         else:
@@ -148,9 +154,15 @@ class GeneralHumanEval(Task):
             base_prompt_templated = tokenizer.apply_chat_template(base_prompt_to_template, add_generation_prompt=True, tokenize=False)
 
             prompt += base_prompt_templated
+
+            prompt += base_prompt + "\n"
         else:
             prompt += base_prompt
 
+        with open("/mnt/efs/mehermankikar/bigcode-evaluation-harness/bigcode_eval/tasks/synthetic_example_reruns_0807/code-llama-synthetic-examples/bad_examples_sanity_check_acclerate_main/prompts.json", "a") as f:
+            json.dump({"prompt": prompt}, f)
+        
+        import pdb; pdb.set_trace()
         return prompt
 
     def get_reference(self, doc):
@@ -174,18 +186,21 @@ class GeneralHumanEval(Task):
 
         ### Templating post_process
         # Find the ``` lines and return what is in between them
-        if self.use_chat_template:
-            try:
-                start_idx = generation.index("```")
-                new_start_idx = generation[start_idx:].index("\n") + start_idx
-                end_idx = generation.find("```", new_start_idx + 1)
-                generation = generation[new_start_idx:end_idx].strip()
-            except Exception as e:
-                raise ValueError("Failed to find '```' in generation") from e
-            return generation
-        else:
-            processed_generation = base_prompt + "\n" + self._stop_at_stop_token(generation, self.stop_words)
-            return processed_generation
+        # if self.use_chat_template:
+        #     try:
+                
+        #         start_idx = generation.index("```")
+        #         new_start_idx = generation[start_idx:].index("\n") + start_idx
+        #         end_idx = generation.find("```", new_start_idx + 1)
+        #         generation = generation[new_start_idx:end_idx].strip()
+        #     except Exception as e:
+        #         import pdb; pdb.set_trace()
+        #         raise ValueError("Failed to find '```' in generation") from e
+        #     return generation
+        # else:
+        import pdb; pdb.set_trace()
+        processed_generation = base_prompt + "\n" + self._stop_at_stop_token(generation, self.stop_words)
+        return processed_generation
 
     def process_results(self, generations, references):
         """Takes the list of LM generations and evaluates them against ground truth references,
@@ -195,7 +210,7 @@ class GeneralHumanEval(Task):
         :param references: list(str)
             list of str containing refrences
         """
-        results, fine_grain_results = compute_code_eval(
+        results, fine_grain_results, code_right, code_wrong, llama3_right, llama3_wrong = compute_code_eval(
             references=references,
             predictions=generations,
             k=self.k,
@@ -203,4 +218,4 @@ class GeneralHumanEval(Task):
             timeout=self.timeout,
         )
 
-        return results, fine_grain_results
+        return results, fine_grain_results, code_right, code_wrong, llama3_right, llama3_wrong
