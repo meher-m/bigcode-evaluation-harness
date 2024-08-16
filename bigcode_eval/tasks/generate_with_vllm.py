@@ -5,7 +5,7 @@ import json
 import time
 import s3fs
 import aiobotocore.session
-from datasets import Dataset, DatasetDict, load_from_disk, load_dataset
+from datasets import load_from_disk
 import os
 import argparse
 from transformers import AutoTokenizer
@@ -66,45 +66,40 @@ def fewshot_examples(nuggets_config, dataset, tokenizer=None):
     # Otherwise, load examples from file
     if nuggets_config.example_idxs:
         examples = ""
-        # import pdb; pdb.set_trace()
         few_shot_turns = []
+
         for example_idx in nuggets_config.example_idxs:
-            # For now, hard-coding the one shot example to be the last task in the HumanEval dataset
-            # Also hard-coding the three sample solutions (good, decent, and bad) here
-            # import pdb; pdb.set_trace()
+            
             sample = dataset[example_idx]
             correct_sol = sample["canonical_solution"]
+            # Hard coding the bad example here
             really_bad_sol = "    cat: cat cat\n    dog dog dog;\n    return [giraffe if giraffe for giraffe in giraffe]"
+            # This is not used in the final set of experiments as of now
             decent_sol = "    lower = 2\n    upper = 8\n    return [i if i % 2 = 0 for i in range(lower, upper)]"
             
             # Create a list of all the different task answers possible for various experiments
             example_task_answers = [really_bad_sol, decent_sol, correct_sol]
 
             # If add_context is set, add additional context to the prompt. 
-            # examples += sample["prompt"] + "\n"
-            # examples += example_task_answers[nuggets_config.prompt_quality] + "\n"
-            few_shot_turns.append({"role": "user", "content": sample["prompt"] + "\n"})
+            user_turn = {"role": "user", "content": f"I am a software engineer working in Python. Can you help me implement a function with the following header and description.\n{sample['prompt']}\n"}
+            few_shot_turns.append(user_turn)
             few_shot_turns.append({"role": "assistant", "content": example_task_answers[nuggets_config.prompt_quality] + "\n"})
         
         examples += tokenizer.apply_chat_template(few_shot_turns, add_generation_prompt=False, tokenize=False)
 
         return examples
     else:
-        try:
-            with open(nuggets_config.examples_path, "r") as file:
-                data = json.load(file)
-        except:
-            print("ERROR READING FILE. SKIPPING")
-            return ""
+        with open(nuggets_config.examples_path, "r") as file:
+            data = json.load(file)
         
         if nuggets_config.use_chat_template:
             examples = ""
-            turns = []
+
+            # If the JSON file had several outer dictionaries in the list, this will support few-shot prompting. 
             for example in data:
                 # Use all turns 
-                # import pdb; pdb.set_trace()
-                turns += example["messages"]
-            examples += tokenizer.apply_chat_template(turns, add_generation_prompt=False, tokenize=False)
+                few_shot_turns += example["messages"]
+            examples += tokenizer.apply_chat_template(few_shot_turns, add_generation_prompt=False, tokenize=False)
         else:
             examples = ""
             # Loop through each few-shot example
@@ -145,9 +140,6 @@ def get_prompt(nuggets_config, dataset, doc, tokenizer=None):
         if not tokenizer:
             raise ValueError("Tokenizer must be provided when using chat template")
         
-        # base_prompt_to_template = [
-        #     {"role": "user", "content": f"I am a software engineering working in Python. Can you help me implement a function with the following header and description.\n{base_prompt}\n"},
-        # ]
         base_prompt_to_template = [
             {"role": "user", "content": f"I am a software engineer working in Python. Can you help me implement a function with the following header and description.\n{base_prompt}\n"},
         ]
@@ -191,28 +183,6 @@ def postprocess_generation(args, nuggets_config, dataset, generation, idx, token
 
     # Templating post_process
     processed_generation = base_prompt + "\n" + _stop_at_stop_token(generation, STOP_WORDS)
-
-    ## Todo: remove this code if you are adding the function header onto the start of the assistant repsonse before generation. 
-    ## ALSO FIX STOP WORDS ABOVE!!
-    # if args.humaneval_example_idx:
-    #     # prompt = self.get_prompt(self.dataset["test"][idx], tokenizer)
-    #     # generation = generation[len(prompt):]
-    #     # base_prompt = self.get_base_prompt(self.doc)
-
-    #     ### Templating post_process
-    #     # Find the ``` lines and return what is in between them
-    #     # if self.use_chat_template:
-    #     try:
-    #         # import pdb; pdb.set_trace()
-    #         start_idx = generation.index("```")
-    #         new_start_idx = generation[start_idx:].index("\n") + start_idx
-    #         end_idx = generation.find("```", new_start_idx + 1)
-    #         generation = generation[new_start_idx:end_idx].strip()
-    #     except Exception as e:
-    #         # import pdb; pdb.set_trace()
-    #         raise ValueError("Failed to find '```' in generation") from e
-    #     return generation
-    
     return processed_generation
         
 
@@ -264,36 +234,18 @@ def generate_for_one_shot(args, nuggets_config, llm, dataset):
     return results
 
 
-def run_zeroshot(nuggets_config, dataset):
-    tokenizer = None
-    if nuggets_config.use_chat_template:
-        tokenizer = AutoTokenizer.from_pretrained(
-            args.model,
-            truncation_side="left",
-            padding_side="right"
-        )
-    prompts = []
-    i = 0
-    for task in dataset:
-        prompt = get_prompt(nuggets_config, dataset, task, tokenizer)
-        prompts.append(prompt)
-        i += 1
-
-    results = generate(nuggets_config, dataset, llm, prompts)
-
-
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Generate code using VLLM')
     parser.add_argument("--num_gpus", type=int, default=1, help="Number of GPUs to use")
-    parser.add_argument("--tmp_generation_dir", type=str, default="vllm_few_shot_examples", help="Directory to save temporary generations to")
+    parser.add_argument("--tmp_generation_dir", type=str, default="vllm_few_shot_examples", help="Directory to save temporary generations to. Use this if you want to run this script multiple times at once to avoid overwriting results.")
     parser.add_argument('--s3_dataset_path', type=str, default=None, help='Path to read dataset from S3. Should end in /dataset/')
     parser.add_argument('--generation_dir', type=str, help='Directory to save generations to. Will be prepended by ~/bigcode-evaluation-harness/bigcode_eval/tasks/')
     parser.add_argument('--model', type=str, help='Name of the hf model to be used for generation')
     parser.add_argument('--local_model', type=str, default=None, help='Local path of model to use for generation')
     parser.add_argument('--use_chat_template', action="store_true", help='Use the chat template for generation')
-    parser.add_argument('--humaneval_example_idx', type=int, default=None, help='Index of the example to use for generation')
+    parser.add_argument('--use_humaneval_example_idx', action="store_true", help='Turn on to run the artificial example idxs for final results.')
     parser.add_argument('--humaneval_prompt_quality', type=int, default=None, help='Index of the example to use for generation')
-    parser.add_argument('--ots_example_dir', type=str, default=None, help='Directory to save temporary generations to')
+    parser.add_argument('--ots_example_dir', type=str, default=None, help='Directory of OTS examples to run Nuggets on.')
     return parser.parse_args()
 
 
@@ -303,14 +255,12 @@ def main():
     args = parse_arguments()
 
     nuggets_config, dataset = get_dataset()
-    # "codellama/CodeLlama-7b-hf"
     if args.local_model:
-        # import pdb; pdb.set_trace()
         llm = LLM(model=args.local_model, tensor_parallel_size=args.num_gpus)
     else:
         llm = LLM(model=args.model, tensor_parallel_size=args.num_gpus)
 
-    if args.humaneval_example_idx:
+    if args.use_humaneval_example_idx:
         # run one shot where the example is a synthetic one from humaneval
         for example_idx in [163, 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149]:
             prompt_quality = args.humaneval_prompt_quality if args.humaneval_prompt_quality >= 0 and args.humaneval_prompt_quality <= 2 else 2
@@ -326,16 +276,15 @@ def main():
             output_file = f"{home_directory}/bigcode-evaluation-harness/bigcode_eval/tasks/{args.generation_dir}/vllm_generation_results_{example_idx}.json"
             with open(output_file, "w") as file:
                 json.dump(one_shot_task_generation, file)
+        total_end_time = time.time()
+        print(f"Total time taken: {total_end_time - full_start_time}")
         return
     
     if args.ots_example_dir:
         tasks = os.listdir(f"{args.ots_example_dir}")
         print("The number of tasks is: ", len(tasks))
-        # tasks = [file for file in files if file.startswith("vllm_generation") and file.endswith(".json") and "zeroshot" not in file]
-        # tasks = ["zeroshot_baseline_fixed_second"]
         for task in tasks:
             print("Starting on task: ", task)
-            # task_id = task.split(".")[0].split("_")[2]
             nuggets_config = NuggetsConfig(
                 prompt_quality=2,
                 add_context=False,
@@ -348,6 +297,8 @@ def main():
             output_file = f"{home_directory}/bigcode-evaluation-harness/bigcode_eval/tasks/{args.generation_dir}/vllm_generation_results_{task}.json"
             with open(output_file, "w") as file:
                 json.dump(one_shot_task_generation, file)
+        total_end_time = time.time()
+        print(f"Total time taken: {total_end_time - full_start_time}")
         return
 
     if not args.s3_dataset_path:
@@ -364,6 +315,8 @@ def main():
         output_file = f"{home_directory}/bigcode-evaluation-harness/bigcode_eval/tasks/{args.generation_dir}/vllm_generation_results_zeroshot_baseline.json"
         with open(output_file, "w") as file:
             json.dump(one_shot_task_generation, file)
+        total_end_time = time.time()
+        print(f"Total time taken: {total_end_time - full_start_time}")
         return
 
     # Run generate_for_one_shot for a bunch of different examples
@@ -375,7 +328,7 @@ def main():
     i = 0
     full_results = {}
     for task in e2e_ds:
-        # import pdb; pdb.set_trace()
+
         start_time = time.time()
         print(f"Starting at task {i}")
 

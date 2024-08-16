@@ -109,7 +109,7 @@ class Evaluator:
                 os.environ["HF_ALLOW_CODE_EVAL"] = "1"
             print("Evaluating generations...")
 
-            results, fine_grain_results = task.process_results(generations, references)
+            results, fine_grain_results, code_right, code_wrong, llama3_right, llama3_wrong = task.process_results(generations, references)
 
             # Simplify the fine grain results to save task_id, generation, and whether it passed.
             simplified_fine_grain_res = {}
@@ -131,7 +131,7 @@ class Evaluator:
                     json.dump(simplified_fine_grain_res, fp)
                     print(f"results with generation were saved at {save_results_path}")
 
-            return results
+            return results, code_right, code_wrong, llama3_right, llama3_wrong
 
     def save_json_files(
         self,

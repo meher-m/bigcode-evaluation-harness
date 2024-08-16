@@ -1,15 +1,6 @@
 import argparse
-import pandas as pd
-import requests
-import aiobotocore.session
-import s3fs
 import json
 import os
-import random
-import time
-
-from datasets import Dataset, DatasetDict, load_from_disk, load_dataset
-from requests.auth import HTTPBasicAuth
 
 
 def parse_arguments():
@@ -56,7 +47,7 @@ def eval_iteration(home_directory, args, i, results, errors):
         res = json.load(f)
         try:
             # import pdb; pdb.set_trace()
-            results[i] = res["humaneval"] #["pass@1"]
+            results[i] = res["humaneval"]
         except:
             # import pdb; pdb.set_trace()
             errors.append(i)
@@ -84,16 +75,13 @@ def main():
         # Tasks are just all those that are in the generation_dir
         files = os.listdir(f"{home_directory}/bigcode-evaluation-harness/bigcode_eval/tasks/{args.generation_dir}")
         tasks = [file for file in files if file.startswith("vllm_generation") and file.endswith(".json") and "zeroshot" not in file]
-        # tasks = ["ots_nuggets_36.json"]
         for task in tasks:
-            task_id = "_".join(task.split(".")[0].split("_")[3:]) + ".json"
+            task_id = "_".join(task.split(".")[0].split("_")[3:]) # + ".json"
             results, errors = eval_iteration(home_directory, args, task_id, results, errors)
-            # import pdb; pdb.set_trace()
-            # break
 
     else:
         # Number of tasks in the OTS dataset I pulled from public.otstasks
-        for i in range(0, 520):
+        for i in range(0, 519):
             results, errors = eval_iteration(home_directory, args, i, results, errors)
 
     # Save results dict locally

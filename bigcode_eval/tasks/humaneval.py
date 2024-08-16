@@ -162,7 +162,6 @@ class GeneralHumanEval(Task):
         with open("/mnt/efs/mehermankikar/bigcode-evaluation-harness/bigcode_eval/tasks/synthetic_example_reruns_0807/code-llama-synthetic-examples/bad_examples_sanity_check_acclerate_main/prompts.json", "a") as f:
             json.dump({"prompt": prompt}, f)
         
-        import pdb; pdb.set_trace()
         return prompt
 
     def get_reference(self, doc):
@@ -198,7 +197,6 @@ class GeneralHumanEval(Task):
         #         raise ValueError("Failed to find '```' in generation") from e
         #     return generation
         # else:
-        import pdb; pdb.set_trace()
         processed_generation = base_prompt + "\n" + self._stop_at_stop_token(generation, self.stop_words)
         return processed_generation
 

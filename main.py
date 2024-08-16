@@ -431,9 +431,13 @@ def main():
                         save_references_path,
                     )
             else:
-                results[task] = evaluator.evaluate(
+                results, code_right, code_wrong, llama3_right, llama3_wrong = evaluator.evaluate(
                     task, intermediate_generations=intermediate_generations
                 )
+                results[task] = {
+                    "result": results,
+                    "new_right_wrong": [code_right, code_wrong, llama3_right, llama3_wrong]
+                }
 
     # Save all args to config
     results["config"] = vars(args)
