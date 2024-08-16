@@ -162,14 +162,22 @@ def compute_code_eval(predictions, references, k=[1, 10, 100], num_workers=4, ti
         correct.append(sum(passed))
     total = np.array(total)
     correct = np.array(correct)
+    
+    code_llama_zeroshot = [1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0]
+    llama_3_zeroshot = [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0]
+    one_shot = [1 if results[idx][0][1]["passed"] else 0 for idx in range(164)]
+    llama3_num_new_right = sum([1 if llama_3_zeroshot[idx] == 0 and one_shot[idx] == 1 else 0 for idx in range(len(llama_3_zeroshot))])
+    llama3_code_num_wrong = sum([1 if llama_3_zeroshot[idx] == 1 and one_shot[idx] == 0 else 0 for idx in range(len(llama_3_zeroshot))])
+    code_num_new_right = sum([1 if code_llama_zeroshot[idx] == 0 and one_shot[idx] == 1 else 0 for idx in range(len(code_llama_zeroshot))])
+    code_num_new_wrong = sum([1 if code_llama_zeroshot[idx] == 1 and one_shot[idx] == 0 else 0 for idx in range(len(code_llama_zeroshot))])
+    print("Total Num Right/Wrong, Llama 3 Num New Right/Wrong, Code Llama Num New Right/Wrong: ", sum(correct), sum(total)-sum(correct), llama3_num_new_right, llama3_code_num_wrong, code_num_new_right, code_num_new_wrong)
 
     ks = k
     if not isinstance(ks, (list, tuple)):
         ks = [ks]
     pass_at_k = {f"pass@{k}": estimate_pass_at_k(total, correct, k).mean() for k in ks if (total >= k).all()}
 
-    return pass_at_k, results
-
+    return pass_at_k, results, code_num_new_right, code_num_new_wrong, llama3_num_new_right, llama3_code_num_wrong 
 
 def estimate_pass_at_k(num_samples, num_correct, k):
     """Estimates pass@k of each problem and returns them in an array."""

@@ -37,7 +37,7 @@ class TooLongFunctionCriteria(StoppingCriteria):
     def __call__(self, input_ids, scores, **kwargs):
         """Returns true if generated sequence is too long."""
         return input_ids.shape[1] > int(self.input_length * self.multiplier)
-        
+
 
 def parallel_generations(
         task,
@@ -83,9 +83,15 @@ def parallel_generations(
             EndOfFunctionCriteria(0, task.stop_words, tokenizer, task.check_fn)
         )
     elif task.stop_words:
-        stopping_criteria.append(
-            EndOfFunctionCriteria(0, task.stop_words, tokenizer)
-        )
+        if args.humaneval_use_chat_template:
+            # Some of the stop tokens like "def" will be used in generation with templating.
+            stopping_criteria.append(
+                EndOfFunctionCriteria(0, [tokenizer.eos_token], tokenizer)
+            )
+        else:
+            stopping_criteria.append(
+                EndOfFunctionCriteria(0, task.stop_words, tokenizer)
+            )
     if hasattr(task, "max_length_multiplier") and task.max_length_multiplier:
         stopping_criteria.append(
             TooLongFunctionCriteria(0, task.max_length_multiplier)

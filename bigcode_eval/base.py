@@ -37,12 +37,12 @@ class Task(ABC):
         """Returns dataset for the task or an iterable of any object, that get_prompt can handle"""
         return []
 
-    def fewshot_examples(self):
+    def fewshot_examples(self, tokenizer=False):
         """Loads and returns the few-shot examples for the task if they exist."""
         pass
 
     @abstractmethod
-    def get_prompt(self, doc):
+    def get_prompt(self, doc, tokenizer=None):
         """Builds the prompt for the LM to generate from.
         :param doc: dict[str: str]
             sample from the test dataset
@@ -58,7 +58,7 @@ class Task(ABC):
         pass
 
     @abstractmethod
-    def postprocess_generation(self, generation, idx):
+    def postprocess_generation(self, generation, idx=None, tokenizer=None):
         """Defines the postprocessing for a LM generation.
         :param generation: str
             code generation from LM

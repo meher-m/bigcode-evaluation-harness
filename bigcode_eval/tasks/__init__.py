@@ -43,6 +43,7 @@ class NuggetsConfig():
     add_context: bool = False
     example_idxs: list = None
     examples_path: str = None
+    use_chat_template: bool = False
 
 
 def get_task(task_name, args=None):
@@ -57,7 +58,8 @@ def get_task(task_name, args=None):
             args.humaneval_prompt_quality,
             args.humaneval_add_context,
             args.humaneval_example_idxs,
-            args.humaneval_examples_path
+            args.humaneval_examples_path,
+            args.humaneval_use_chat_template
         )
         if task_name == "humaneval":
             kwargs["nuggets_config"] = nuggets_config
